@@ -1,0 +1,7 @@
+spring:
+  config:
+    import: "classpath:api.yml"
+baidu:
+  endpoint: https://fanyi-api.baidu.com/api/trans/vip/translate
+  appid: ${baidu.appid}
+  key: ${baidu.key}

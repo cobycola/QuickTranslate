@@ -1,0 +1,12 @@
+# 忽略 API 密钥配置文件
+src/main/resources/api.yml
+
+# 编译输出目录
+target/
+
+# IDE 文件
+*.iml
+.idea/
+
+# mvn文件
+/.mvn
