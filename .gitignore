@@ -10,3 +10,6 @@ target/
 
 # mvn文件
 /.mvn
+
+# test文件
+src/test
