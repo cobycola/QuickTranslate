@@ -3,5 +3,7 @@ spring:
     import: "classpath:api.yml"
 baidu:
   endpoint: https://fanyi-api.baidu.com/api/trans/vip/translate
-  appid: ${baidu.appid}
-  key: ${baidu.key}
+  appid: ${api.baidu.appid}
+  key: ${api.baidu.key}
+fastapi:
+  endpoint: http://localhost:8000/translate/en2zh

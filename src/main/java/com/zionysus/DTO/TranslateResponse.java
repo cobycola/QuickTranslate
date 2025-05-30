@@ -9,7 +9,7 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class BaiduTranslateResponse {
+public class TranslateResponse {
     private String from;
     private String to;
     private List<Translation> trans_result;

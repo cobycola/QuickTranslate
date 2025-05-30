@@ -1,7 +1,7 @@
 package com.zionysus.Service;
 
-import com.zionysus.DTO.BaiduTranslateRequest;
+import com.zionysus.DTO.TranslateRequest;
 
 public interface TranslateService {
-    String translate(BaiduTranslateRequest request);
+    String translate(TranslateRequest request);
 }

@@ -109,6 +109,7 @@
         <option value="baidu">百度翻译</option>
         <option value="google">谷歌翻译</option>
         <option value="youdao">有道翻译</option>
+        <option value="fastApi">FastApi</option>
     </select>
 </header>
 <main>
@@ -164,6 +165,19 @@
     const toLangSelect = document.getElementById('to-lang');
     const translateBtn = document.getElementById('translate-btn');
 
+    function updateLanguageSelection() {
+        if (apiSelect.value === 'fastApi') {
+            fromLangSelect.value = 'en';
+            toLangSelect.value = 'zh';
+            fromLangSelect.disabled = true;
+            toLangSelect.disabled = true;
+        } else {
+            fromLangSelect.disabled = false;
+            toLangSelect.disabled = false;
+        }
+    }
+
+    apiSelect.addEventListener('change', updateLanguageSelection);
     translateBtn.addEventListener('click', () => {
         const text = inputText.value.trim();
         const from = fromLangSelect.value;
@@ -189,6 +203,9 @@
                 outputText.value = '翻译失败：' + err.message;
             });
     });
+
+    // 初始化时也检查一次
+    updateLanguageSelection();
 </script>
 </body>
 </html>

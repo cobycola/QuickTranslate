@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class BaiduTranslateRequest {
+public class TranslateRequest {
     private String text;
     private String from;
     private String to;

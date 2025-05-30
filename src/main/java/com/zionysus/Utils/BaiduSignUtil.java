@@ -1,16 +1,16 @@
 package com.zionysus.Utils;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
 public class BaiduSignUtil {
-    public static String md5(String input) {
+
+    private static String md5(String input) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] bytes = md.digest(input.getBytes("UTF-8"));
+            byte[] bytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
             for (byte b : bytes) {
-                String hex = Integer.toHexString(b & 0xff);
-                if (hex.length() == 1) sb.append('0');
-                sb.append(hex);
+                sb.append(String.format("%02x", b & 0xff));
             }
             return sb.toString();
         } catch (Exception e) {
@@ -18,9 +18,12 @@ public class BaiduSignUtil {
         }
     }
 
-    public static String makeSign(String appid, String query, String salt, String key) {
-        String str = appid + query + salt + key;
-        return md5(str);
+    private String urlEncode(String text) {
+        try {
+            return java.net.URLEncoder.encode(text, StandardCharsets.UTF_8.toString());
+        } catch (Exception e) {
+            return "";
+        }
     }
 }
 

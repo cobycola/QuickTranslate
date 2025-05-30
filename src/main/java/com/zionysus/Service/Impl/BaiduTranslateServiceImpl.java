@@ -1,17 +1,23 @@
 package com.zionysus.Service.Impl;
 
-import com.zionysus.DTO.BaiduTranslateResponse;
-import com.zionysus.DTO.BaiduTranslateRequest;
+import cn.hutool.http.HttpRequest;
+import cn.hutool.http.HttpResponse;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
+import com.zionysus.DTO.TranslateRequest;
 import com.zionysus.Service.TranslateService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
+import static cn.hutool.crypto.SecureUtil.md5;
+
+@Slf4j
 @Service("baiduTranslateService")
 public class BaiduTranslateServiceImpl implements TranslateService {
 
@@ -21,69 +27,46 @@ public class BaiduTranslateServiceImpl implements TranslateService {
     @Value("${baidu.key}")
     private String key;
 
-    @Value("${baidu.endpoint:https://fanyi-api.baidu.com/api/trans/vip/translate}")
+    @Value("${baidu.endpoint}")
     private String endpoint;
 
-    private final RestTemplate restTemplate = new RestTemplate();
-
-    private static String md5(String input) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] bytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : bytes) {
-                sb.append(String.format("%02x", b & 0xff));
-            }
-            return sb.toString();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private String urlEncode(String text) {
-        try {
-            return java.net.URLEncoder.encode(text, StandardCharsets.UTF_8.toString());
-        } catch (Exception e) {
-            return "";
-        }
-    }
 
     @Override
-    public String translate(BaiduTranslateRequest request) {
-        String salt = String.valueOf(System.currentTimeMillis()); // 避免重复
-        String text = request.getText();
-        String from = request.getFrom();
-        String to = request.getTo();
-        String sign = md5(appid + text + salt + key);
-        String encodedText = urlEncode(text);
-        //组合URL 这里注意！！sign不传入urlEncode(text) 否则会54001报错
-        String url = String.format("%s?q=%s&from=%s&to=%s&appid=%s&salt=%s&sign=%s",
-                endpoint, encodedText, from, to, appid, salt, sign);
-        BaiduTranslateResponse response=null;
+    public String translate(TranslateRequest request) {
+        String salt = String.valueOf(System.currentTimeMillis());
+        String sign = md5(appid + request.getText() + salt + key);
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("q", request.getText());
+        params.put("from", request.getFrom());
+        params.put("to", request.getTo());
+        params.put("appid", appid);
+        params.put("salt", salt);
+        params.put("sign", sign);
+        String requestUrl = endpoint + "?" + params.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue())
+                .reduce((p1, p2) -> p1 + "&" + p2)
+                .orElse("");
+        log.info("调用百度翻译API，URL: {}", requestUrl);
         try {
-            URI uri = URI.create(url);
-            response = restTemplate.getForObject(uri, BaiduTranslateResponse.class);
+            // 发送GET请求并获取响应
+            HttpResponse response = HttpRequest.get(endpoint)
+                    .form(params)
+                    .execute();
+
+            if (!response.isOk()) {
+                return "Error: " + response.getStatus();
+            }
+
+            JSONObject json = JSONUtil.parseObj(response.body());
+            if (json.containsKey("error_code")) {
+                return "Error: " + json.getStr("error_msg");
+            }
+
+            JSONObject result = json.getJSONArray("trans_result").getJSONObject(0);
+            return result.getStr("dst");
         } catch (Exception e) {
-            return "翻译失败：" + e.getMessage();
-        } finally {
-            System.out.println("响应: " + response);
+            return "Translation failed：" + e.getMessage();
         }
-
-        if (response == null) {
-            return "翻译失败：无响应";
-        }
-
-        if (response.getError_code() != null) {
-            return "翻译错误：" + response.getError_msg();
-        }
-
-        List<BaiduTranslateResponse.Translation> results = response.getTrans_result();
-        if (results == null || results.isEmpty()) {
-            return "无翻译结果";
-        }
-
-        return results.get(0).getDst();
     }
-
-
 }
