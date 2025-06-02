@@ -1,5 +1,6 @@
 package com.zionysus.Service.Impl;
 
+import cn.hutool.core.net.url.UrlBuilder;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,17 +26,21 @@ public class FastApiTranslateServiceImpl implements TranslateService {
     @Value("${fastapi.endpoint}")
     private String endpoint;
 
+    private Map<String, Object> buildParams(TranslateRequest request) throws UnsupportedEncodingException {
+        String encodedText = URLEncoder.encode(request.getText(), StandardCharsets.UTF_8.name());
+        encodedText = encodedText.replace("+", "%20");
+        Map<String, Object> params = new HashMap<>();
+        params.put("text", encodedText);
+        return params;
+    }
+
     @Override
-    public String translate(TranslateRequest request) {
+    public String translateByGet(TranslateRequest request) {
         try {
-            String encodedText = URLEncoder.encode(request.getText(), StandardCharsets.UTF_8.name());
-            encodedText = encodedText.replace("+", "%20");
-            Map<String, Object> params = new HashMap<>();
-            params.put("text", encodedText);
-            String requestUrl = endpoint + "?" + params.entrySet().stream()
-                    .map(e -> e.getKey() + "=" + e.getValue())
-                    .reduce((p1, p2) -> p1 + "&" + p2)
-                    .orElse("");
+            Map<String, Object> params = buildParams(request);
+            UrlBuilder urlBuilder = UrlBuilder.of(endpoint, Charset.forName("UTF-8"));
+            params.forEach((k, v) -> urlBuilder.addQuery(k, String.valueOf(v)));
+            String requestUrl = urlBuilder.build();
             log.info("调用FastAPI，URL: {}", requestUrl);
             try {
 
@@ -59,6 +65,32 @@ public class FastApiTranslateServiceImpl implements TranslateService {
             }
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public String translateByPost(TranslateRequest request) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("text", request.getText());
+        log.info("调用FastAPI POST，URL: {}", endpoint);
+        try {
+            HttpResponse response = HttpRequest.post(endpoint)
+                    .form(params)
+                    .execute();
+
+            if (!response.isOk()) {
+                return "Error: " + response.getStatus();
+            }
+
+            JSONObject json = JSONUtil.parseObj(response.body());
+            if (json.containsKey("error_code")) {
+                return "Error: " + json.getStr("error_msg");
+            }
+
+            JSONObject result = json.getJSONArray("trans_result").getJSONObject(0);
+            return result.getStr("dst");
+        } catch (Exception e) {
+            return "Translation failed：" + e.getMessage();
         }
     }
 }

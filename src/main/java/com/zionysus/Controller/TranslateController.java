@@ -2,9 +2,7 @@ package com.zionysus.Controller;
 
 import com.zionysus.DTO.TranslateRequest;
 import com.zionysus.Service.TranslateService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
@@ -28,6 +26,16 @@ public class TranslateController {
             return "错误：不支持的翻译API：" + api;
         }
         TranslateRequest request=new TranslateRequest(text,from,to);
-        return service.translate(request);
+        return service.translateByGet(request);
+    }
+
+    @PostMapping("/translate")
+    public String translatePost(@RequestBody TranslateRequest request,
+                                @RequestParam(defaultValue = "baidu") String api) {
+        TranslateService service = translateServices.get(api + "TranslateService");
+        if (service == null) {
+            return "错误：不支持的翻译API：" + api;
+        }
+        return service.translateByPost(request);
     }
 }

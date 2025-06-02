@@ -191,17 +191,47 @@
 
         outputText.value = '翻译中...';
 
-        fetch(`/translate?text=${encodeURIComponent(text)}&from=${from}&to=${to}&api=${api}`)
-            .then(res => {
-                if (!res.ok) throw new Error('网络错误');
-                return res.text();
+        const maxGetLength = 100; // 超过100字符使用POST请求
+        console.log("文本长度: ", text.length);
+        if(text.length > 100) {
+            console.log("使用POST");
+        } else {
+            console.log("使用GET");
+        }
+
+        if (text.length <= maxGetLength) {
+            // 用GET请求
+            fetch(`/translate?text=${encodeURIComponent(text)}&from=${from}&to=${to}&api=${api}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('网络错误');
+                    return res.text();
+                })
+                .then(result => {
+                    outputText.value = result;
+                })
+                .catch(err => {
+                    outputText.value = '翻译失败：' + err.message;
+                });
+        } else {
+            // 用POST请求
+            fetch('/translate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text, from, to, api })
             })
-            .then(result => {
-                outputText.value = result;
-            })
-            .catch(err => {
-                outputText.value = '翻译失败：' + err.message;
-            });
+                .then(res => {
+                    if (!res.ok) throw new Error('网络错误');
+                    return res.text();
+                })
+                .then(result => {
+                    outputText.value = result;
+                })
+                .catch(err => {
+                    outputText.value = '翻译失败：' + err.message;
+                });
+        }
     });
 
     // 初始化时也检查一次
