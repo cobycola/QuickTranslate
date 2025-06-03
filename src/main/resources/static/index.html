@@ -191,50 +191,34 @@
 
         outputText.value = '翻译中...';
 
-        const maxGetLength = 100; // 超过100字符使用POST请求
-        console.log("文本长度: ", text.length);
-        if(text.length > 100) {
-            console.log("使用POST");
-        } else {
-            console.log("使用GET");
-        }
+        const maxGetLength = 100;
 
-        if (text.length <= maxGetLength) {
-            // 用GET请求
-            fetch(`/translate?text=${encodeURIComponent(text)}&from=${from}&to=${to}&api=${api}`)
-                .then(res => {
-                    if (!res.ok) throw new Error('网络错误');
-                    return res.text();
-                })
-                .then(result => {
-                    outputText.value = result;
-                })
-                .catch(err => {
-                    outputText.value = '翻译失败：' + err.message;
-                });
-        } else {
-            // 用POST请求
-            fetch('/translate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ text, from, to, api })
-            })
-                .then(res => {
-                    if (!res.ok) throw new Error('网络错误');
-                    return res.text();
-                })
-                .then(result => {
-                    outputText.value = result;
-                })
-                .catch(err => {
-                    outputText.value = '翻译失败：' + err.message;
-                });
-        }
+        const handleResponse = res => {
+            if (!res.ok) throw new Error('网络错误');
+            return res.json();
+        };
+
+        const handleResult = data => {
+            if (Array.isArray(data.trans_result)) {
+                outputText.value = data.trans_result.map(item => item.dst).join('\n\n');
+            } else if (typeof data.result === 'string') {
+                outputText.value = data.result;
+            } else {
+                outputText.value = '翻译失败：无法解析服务器响应';
+            }
+        };
+        fetch('/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, from, to, api })
+        })
+            .then(handleResponse)
+            .then(handleResult)
+            .catch(err => {
+                outputText.value = '翻译失败：' + err.message;
+            });
     });
 
-    // 初始化时也检查一次
     updateLanguageSelection();
 </script>
 </body>

@@ -1,8 +1,8 @@
 package com.zionysus.Service;
 
 import com.zionysus.DTO.TranslateRequest;
+import com.zionysus.DTO.TranslateResponse;
 
 public interface TranslateService {
-    String translateByGet(TranslateRequest request);
-    String translateByPost(TranslateRequest request);
+    TranslateResponse translate(TranslateRequest request);
 }

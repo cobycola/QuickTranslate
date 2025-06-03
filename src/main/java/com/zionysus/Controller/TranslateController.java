@@ -1,41 +1,39 @@
 package com.zionysus.Controller;
 
 import com.zionysus.DTO.TranslateRequest;
+import com.zionysus.DTO.TranslateResponse;
 import com.zionysus.Service.TranslateService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
 @RestController
+@RequestMapping("/translate")
 public class TranslateController {
 
-    // 存储不同翻译服务的实现，key=api+"TranslateService"
+    // 注入多个翻译服务实现，key 形式为 "baiduTranslateService"、"localTranslateService" 等
     private final Map<String, TranslateService> translateServices;
 
     public TranslateController(Map<String, TranslateService> translateServices) {
         this.translateServices = translateServices;
     }
 
-    @GetMapping("/translate")
-    public String translate(@RequestParam String text,
-                            @RequestParam String from,
-                            @RequestParam String to,
-                            @RequestParam(defaultValue = "baidu") String api) {
+    @PostMapping
+    public TranslateResponse translate (@RequestBody TranslateRequest request) {
+        String api=request.getApi();
+        TranslateResponse errorResponse = new TranslateResponse();
+        if (api == null || api.isEmpty()) {
+            errorResponse.setError_code("400");
+            errorResponse.setError_msg("错误：未指定翻译API");
+            return errorResponse;
+        }
+        // 获取对应的翻译服务
         TranslateService service = translateServices.get(api + "TranslateService");
         if (service == null) {
-            return "错误：不支持的翻译API：" + api;
+            errorResponse.setError_code("400");
+            errorResponse.setError_msg("错误：不支持的翻译API：" + api);
+            return errorResponse;
         }
-        TranslateRequest request=new TranslateRequest(text,from,to);
-        return service.translateByGet(request);
-    }
-
-    @PostMapping("/translate")
-    public String translatePost(@RequestBody TranslateRequest request,
-                                @RequestParam(defaultValue = "baidu") String api) {
-        TranslateService service = translateServices.get(api + "TranslateService");
-        if (service == null) {
-            return "错误：不支持的翻译API：" + api;
-        }
-        return service.translateByPost(request);
+        return service.translate(request);
     }
 }

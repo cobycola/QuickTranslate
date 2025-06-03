@@ -11,4 +11,5 @@ public class TranslateRequest {
     private String text;
     private String from;
     private String to;
+    private String api;
 }

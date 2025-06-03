@@ -1,6 +1,8 @@
 package com.zionysus.Utils;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+
 
 public class BaiduSignUtil {
 
@@ -10,7 +12,7 @@ public class BaiduSignUtil {
             byte[] bytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
             for (byte b : bytes) {
-                sb.append(String.format("%02x", b & 0xff));
+                sb.append(java.lang.String.format("%02x", b & 0xff));
             }
             return sb.toString();
         } catch (Exception e) {
@@ -25,5 +27,6 @@ public class BaiduSignUtil {
             return "";
         }
     }
+
 }
 
