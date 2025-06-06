@@ -41,7 +41,7 @@ public class FastApiTranslateServiceImpl implements TranslateService {
                 return response;
             }
             JSONObject json = JSONUtil.parseObj(httpResponse.body());
-            if (json.containsKey("error_code")) {
+            if (json.getStr("error_code")!=null) {
                 response.setError_code(json.getStr("error_code"));
                 response.setError_msg(json.getStr("error_msg"));
                 return response;
