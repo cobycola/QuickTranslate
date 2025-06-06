@@ -16,11 +16,11 @@ app = FastAPI()
 
 # 模型初始化
 try:
-    translation_pipeline = pipeline(task=Tasks.translation, model='damo/nlp_csanmt_translation_en2zh')
+    translation_line = pipeline(task=Tasks.translation, model='damo/nlp_csanmt_translation_en2zh')
     print("Model initialized successfully.")
 except Exception as e:
     print(f"Model initialization Error: {e}")
-    translation_pipeline = None
+    translation_line = None
 
 
 # 翻译结果
@@ -45,13 +45,17 @@ class TranslationRequest(BaseModel):
     text: str
 
 # 分段
-def split_text_by_line_keep_empty(text: str) -> List[str]:
+def split_text(text: str) -> List[str]:
     return text.splitlines()
 
+def clean_text_spacing(text: str) -> str:
+    text = re.sub(r'\s*([.!?;,:])\s*', r'\1', text.strip())
+    text = re.sub(r'\s+', ' ', text)
+    return text
 
-async def perform_paragraph_translation(input_text: str):
+async def doTranslation(input_text: str):
     # 初始化翻译模型
-    if translation_pipeline is None:
+    if translation_line is None:
         return JSONResponse(
             status_code=HTTP_500_INTERNAL_SERVER_ERROR,
             content=TranslateResponse(
@@ -61,81 +65,85 @@ async def perform_paragraph_translation(input_text: str):
         )
 
     # 分割段落
-    lines_to_translate = split_text_by_line_keep_empty(input_text)
+    lines = split_text(input_text)
 
     # 如果没有可翻译的内容，返回错误
-    if not lines_to_translate:
+    if not lines:
         return JSONResponse(
             status_code=HTTP_400_BAD_REQUEST,
             content=TranslateResponse(
                 error_code="40004",
-                error_msg="Input text is empty."
+                error_msg="Error: Input text is empty."
             ).model_dump(by_alias=True)
         )
 
-    translated_segments: List[Translation] = []
+    results: List[Translation] = []
 
     # 翻译每个段落
-    for src_line in lines_to_translate:
+    for src_line in lines:
         try:
+            src_line = src_line.strip()
             if src_line.strip() == "":
                 continue
-            result = translation_pipeline(src_line)
-            translated_text = ""
-
+            src_line = clean_text_spacing(src_line)
+            print(f"正在翻译：{repr(src_line)}，长度：{len(src_line)}")
+            result = translation_line(src_line)
+            translation = ""
             # 提取翻译结果
             if isinstance(result, dict) and 'text' in result:
-                translated_text = result['text']
+                translation = result['text']
             elif isinstance(result, str):
-                translated_text = result
+                translation = result
             elif isinstance(result, dict) and 'translation' in result:
-                translated_text = result['translation']
+                translation = result['translation']
             else:
-                print(f"Warning: Unexpected model. '{src_line[:50]}...': {result}")
-                translated_segments.append(Translation(
+                print(f"Warning: Unexpected model output format for line '{src_line[:50]}...': {result}")
+                results.append(Translation(
                     src=src_line,
-                    dst="Translation error: Unexpected output."
+                    dst="Translation error: Unexpected output format."
                 ))
                 continue
-            translated_text = postprocess_punctuation(translated_text)
-            translated_segments.append(Translation(src=src_line, dst=translated_text))
+
+            results.append(Translation(src=src_line, dst=translation))
 
         except Exception as e:
             print(f"Error translating line '{src_line[:50]}...': {e}")
             traceback.print_exc()
-            translated_segments.append(Translation(
+            results.append(Translation(
                 src=src_line,
                 dst=f"Translation failed: {str(e)}"
             ))
 
-    if not translated_segments:
-        return JSONResponse(
-            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
-            content=TranslateResponse(
-                error_code="50005",
-                error_msg="No segments were successfully translated."
-            ).model_dump(by_alias=True)
-        )
+        if not results:
+            return JSONResponse(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                content=TranslateResponse(
+                    error_code="50005",
+                    error_msg="No results were successfully translated."
+                ).model_dump(by_alias=True)
+            )
 
     return TranslateResponse(
         from_lang="en",
         to_lang="zh",
-        trans_result=translated_segments
+        trans_result=results
     )
 
-# 替换标点符号 解决分段翻译后标点符号不对的问题
 def postprocess_punctuation(text):
+    # 替换标点符号 解决分段翻译后标点符号不对的问题
     text = re.sub(r'(?<=\w)\.', '。', text)
     text = re.sub(r'(?<=\w),', '，', text)
     text = re.sub(r'(?<=\w);', '；', text)
     text = re.sub(r'(?<=\w):', '：', text)
     text = re.sub(r'(?<=\w)\?', '？', text)
     text = re.sub(r'(?<=\w)!', '！', text)
-    text = text.replace('(', '（').replace(')', '）')
+    text = text.replace('(', '(').replace(')', ')')
     text = text.replace('[', '【').replace(']', '】')
     text = text.replace('"', '“')
     text = text.replace("'", '’')
-
+    # 清除标点前后多余空格
+    text = re.sub(r'\s+([，。！？：；\-])', r'\1', text)  # 删除标点前空格
+    text = re.sub(r'([，。！？：；\-])\s+', r'\1', text)  # 删除标点后空格
     return text
 @app.post(
     "/translate/en2zh",
@@ -150,4 +158,4 @@ def postprocess_punctuation(text):
 async def translate_english_to_chinese_post(
         request: TranslationRequest
 ):
-    return await perform_paragraph_translation(request.text)
+    return await doTranslation(request.text)
